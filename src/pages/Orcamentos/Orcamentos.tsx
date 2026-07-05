@@ -10,8 +10,224 @@ import type { ItemOrcamento, Orcamento, StatusOrcamento } from '../../models/Orc
 import type { Servico } from '../../models/Servico';
 
 import { clienteService } from '../../services/clienteService';
-import { carregarOrcamentos, carregarTabelaPrecos, salvarOrcamentos } from '../../services/orcamentoStorage';
+import { carregarOrcamentos, carregarTabelaPrecos, proximoNumeroOrcamento, salvarOrcamentos } from '../../services/orcamentoStorage';
 import { formatarMoeda } from '../../utils/formatarMoeda';
+import logoGessoSMJ from '../../assets/logo-gesso-smj.png';
+
+
+function quebrarTexto(ctx: CanvasRenderingContext2D, texto: string, x: number, y: number, larguraMaxima: number, alturaLinha: number) {
+  const palavras = texto.split(' ');
+  let linha = '';
+  let yAtual = y;
+
+  palavras.forEach((palavra) => {
+    const teste = linha ? `${linha} ${palavra}` : palavra;
+    if (ctx.measureText(teste).width > larguraMaxima && linha) {
+      ctx.fillText(linha, x, yAtual);
+      linha = palavra;
+      yAtual += alturaLinha;
+    } else {
+      linha = teste;
+    }
+  });
+
+  if (linha) ctx.fillText(linha, x, yAtual);
+  return yAtual + alturaLinha;
+}
+
+function carregarImagem(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const imagem = new Image();
+    imagem.onload = () => resolve(imagem);
+    imagem.onerror = reject;
+    imagem.src = src;
+  });
+}
+
+function formatarQuantidade(valor: number) {
+  return Number(valor || 0).toLocaleString('pt-BR', {
+    minimumFractionDigits: valor % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function numeroOrcamento(orcamento: Orcamento) {
+  const numero = orcamento.numero || orcamento.id;
+  return `ORÇ-${String(numero).padStart(4, '0')}`;
+}
+
+function desenharLinhaValor(ctx: CanvasRenderingContext2D, nome: string, detalhe: string, valor: string, y: number) {
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '800 25px Arial';
+  ctx.fillText(nome, 95, y);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '700 20px Arial';
+  if (detalhe) ctx.fillText(detalhe, 95, y + 27);
+  ctx.fillStyle = '#0b2f4f';
+  ctx.font = '900 25px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText(valor, 985, y + 10);
+  ctx.textAlign = 'left';
+  return y + 66;
+}
+
+async function gerarImagemOrcamento(orcamento: Orcamento) {
+  const largura = 1080;
+  const altura = 1530;
+  const canvas = document.createElement('canvas');
+  canvas.width = largura;
+  canvas.height = altura;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas indisponível');
+
+  ctx.fillStyle = '#f4f7fb';
+  ctx.fillRect(0, 0, largura, altura);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.roundRect(48, 42, largura - 96, altura - 84, 42);
+  ctx.fill();
+
+  ctx.strokeStyle = '#dbe4f0';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  const logo = await carregarImagem(logoGessoSMJ);
+  ctx.drawImage(logo, 84, 78, 178, 178);
+
+  ctx.fillStyle = '#0b2f4f';
+  ctx.font = '900 44px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText('ORÇAMENTO', 995, 118);
+  ctx.font = '800 27px Arial';
+  ctx.fillText(numeroOrcamento(orcamento), 995, 158);
+  ctx.fillStyle = '#64748b';
+  ctx.font = '700 23px Arial';
+  ctx.fillText(new Date(orcamento.criadoEm).toLocaleDateString('pt-BR'), 995, 194);
+  ctx.textAlign = 'left';
+
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.beginPath();
+  ctx.moveTo(84, 292);
+  ctx.lineTo(996, 292);
+  ctx.stroke();
+
+  let y = 350;
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '900 34px Arial';
+  y = quebrarTexto(ctx, orcamento.cliente || 'Cliente não informado', 84, y, 912, 42);
+
+  ctx.fillStyle = '#334155';
+  ctx.font = '700 24px Arial';
+  const descricao = orcamento.observacoes || 'Execução de serviços em gesso e drywall conforme medições abaixo.';
+  y = quebrarTexto(ctx, descricao, 84, y + 6, 912, 32);
+
+  const local = [orcamento.endereco, orcamento.bairro, orcamento.cidade, orcamento.referencia].filter(Boolean).join(' • ');
+  if (local) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '700 21px Arial';
+    y = quebrarTexto(ctx, local, 84, y + 2, 912, 28);
+  }
+
+  y += 26;
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.beginPath();
+  ctx.moveTo(84, y);
+  ctx.lineTo(996, y);
+  ctx.stroke();
+  y += 44;
+
+  ctx.fillStyle = '#0b2f4f';
+  ctx.font = '900 27px Arial';
+  ctx.fillText('MEDIÇÕES E VALORES', 84, y);
+  y += 42;
+
+  const itensVisiveis = orcamento.itens.slice(0, 8);
+  itensVisiveis.forEach((item) => {
+    y = desenharLinhaValor(
+      ctx,
+      item.nome,
+      `${formatarQuantidade(item.quantidade)} ${item.unidade} × ${formatarMoeda(item.valorUnitario)}`,
+      formatarMoeda(item.subtotal),
+      y,
+    );
+  });
+
+  if (orcamento.desconto > 0 || orcamento.acrescimo > 0) {
+    y = desenharLinhaValor(ctx, 'Subtotal', '', formatarMoeda(orcamento.subtotal), y);
+  }
+
+  if (orcamento.itens.length > itensVisiveis.length) {
+    ctx.fillStyle = '#64748b';
+    ctx.font = '800 21px Arial';
+    ctx.fillText(`+ ${orcamento.itens.length - itensVisiveis.length} item(ns) no orçamento`, 95, y);
+    y += 42;
+  }
+
+  if (orcamento.desconto > 0) {
+    y = desenharLinhaValor(ctx, 'Desconto', '', `- ${formatarMoeda(orcamento.desconto)}`, y);
+  }
+
+  if (orcamento.acrescimo > 0) {
+    y = desenharLinhaValor(ctx, 'Acréscimo', '', formatarMoeda(orcamento.acrescimo), y);
+  }
+
+  ctx.fillStyle = '#062f4f';
+  ctx.beginPath();
+  ctx.roundRect(84, y + 8, 912, 118, 28);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 27px Arial';
+  ctx.fillText(orcamento.desconto > 0 ? 'VALOR TOTAL COM DESCONTO' : 'VALOR TOTAL', 124, y + 58);
+  ctx.font = '900 52px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText(formatarMoeda(orcamento.total), 956, y + 76);
+  ctx.textAlign = 'left';
+  y += 162;
+
+  const observacoesPadrao = [
+    'Material e mão de obra de gesso inclusos.',
+    'Material de emassamento por conta do cliente quando houver emassamento.',
+    'Pintura não inclusa.',
+    'Validade do orçamento: 15 dias.',
+  ];
+
+  ctx.fillStyle = '#0f172a';
+  ctx.font = '800 22px Arial';
+  observacoesPadrao.forEach((texto) => {
+    ctx.fillText(`✓ ${texto}`, 94, y);
+    y += 34;
+  });
+
+  ctx.fillStyle = '#062f4f';
+  ctx.beginPath();
+  ctx.roundRect(48, altura - 286, largura - 96, 244, 0);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 26px Arial';
+  ctx.fillText('CONTATOS', 84, altura - 222);
+  ctx.font = '800 23px Arial';
+  ctx.fillText('Felipe: (27) 99797-9021', 84, altura - 180);
+  ctx.fillText('Vitor: (27) 99839-8331', 84, altura - 145);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.beginPath();
+  ctx.moveTo(84, altura - 112);
+  ctx.lineTo(996, altura - 112);
+  ctx.stroke();
+
+  ctx.font = '900 24px Arial';
+  ctx.fillText('FÁBRICA', 84, altura - 76);
+  ctx.font = '700 21px Arial';
+  ctx.fillText('Vila dos Italianos, Santa Maria de Jetibá - ES', 205, altura - 76);
+  ctx.fillText('Referência: em cima da serraria do Elimar Schwambach', 84, altura - 44);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Falha ao gerar imagem')), 'image/png', 0.96);
+  });
+}
 
 export default function Orcamentos() {
   const navigate = useNavigate();
@@ -195,8 +411,11 @@ export default function Orcamentos() {
     const nomeCliente = cliente.trim() || 'Cliente não informado';
     if (status === 'Aprovado' && !dataObra) return alert('Orçamento aprovado precisa ter data da obra.');
 
+    const orcamentoExistente = orcamentos.find((item) => item.id === orcamentoEditandoId);
+
     const dados: Orcamento = {
       id: orcamentoEditandoId || Date.now(),
+      numero: orcamentoExistente?.numero || proximoNumeroOrcamento(orcamentos),
       clienteId: clienteId || undefined,
       cliente: nomeCliente,
       telefone,
@@ -216,7 +435,7 @@ export default function Orcamentos() {
       equipe: status === 'Aprovado' ? equipe : '',
       observacoesExecucao: status === 'Aprovado' ? observacoesExecucao : '',
       criadoEm:
-        orcamentos.find((item) => item.id === orcamentoEditandoId)?.criadoEm ||
+        orcamentoExistente?.criadoEm ||
         new Date().toISOString().split('T')[0],
       atualizadoEm: new Date().toISOString().split('T')[0],
     };
@@ -253,6 +472,7 @@ export default function Orcamentos() {
     const novo: Orcamento = {
       ...orcamento,
       id: Date.now(),
+      numero: proximoNumeroOrcamento(orcamentos),
       cliente: `${orcamento.cliente} - cópia`,
       status: 'Pendente',
       dataObra: '',
@@ -267,14 +487,30 @@ export default function Orcamentos() {
 
   async function compartilharOrcamento(orcamento: Orcamento) {
     const texto = `Gesso SMJ\nOrçamento: ${orcamento.cliente}\nTotal: ${formatarMoeda(orcamento.total)}\nStatus: ${orcamento.status}`;
+
     try {
-      if (navigator.share) await navigator.share({ title: 'Orçamento Gesso SMJ', text: texto });
-      else {
-        await navigator.clipboard.writeText(texto);
-        alert('Resumo copiado. A geração de imagem fica para o próximo pacote.');
+      const blob = await gerarImagemOrcamento(orcamento);
+      const arquivo = new File([blob], `orcamento-gesso-smj-${orcamento.id}.png`, { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare?.({ files: [arquivo] })) {
+        await navigator.share({ title: 'Orçamento Gesso SMJ', text: texto, files: [arquivo] });
+        return;
       }
+
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `orcamento-gesso-smj-${orcamento.id}.png`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      await navigator.clipboard?.writeText(texto);
+      alert('Imagem do orçamento gerada. O resumo também foi copiado.');
     } catch {
-      alert('Não foi possível compartilhar agora.');
+      try {
+        await navigator.clipboard.writeText(texto);
+        alert('Não foi possível gerar a imagem agora. Resumo copiado.');
+      } catch {
+        alert('Não foi possível compartilhar agora.');
+      }
     }
   }
 
@@ -381,7 +617,7 @@ export default function Orcamentos() {
             <div style={styles.visualizacaoTopo}>
               <div>
                 <h2 style={styles.cardTitulo}>{orcamentoVisualizado.cliente}</h2>
-                <p style={styles.textoFraco}>{orcamentoVisualizado.cidade} • {orcamentoVisualizado.status}</p>
+                <p style={styles.textoFraco}>{numeroOrcamento(orcamentoVisualizado)} • {orcamentoVisualizado.cidade} • {orcamentoVisualizado.status}</p>
               </div>
               <strong style={styles.valorGrande}>{formatarMoeda(orcamentoVisualizado.total)}</strong>
             </div>
@@ -406,7 +642,7 @@ export default function Orcamentos() {
               <div key={orcamento.id} style={styles.orcamentoCard}>
                 <div>
                   <h3 style={styles.orcamentoCliente}>{orcamento.cliente}</h3>
-                  <p style={styles.textoFraco}>{orcamento.cidade || 'Cidade não informada'} • {orcamento.itens.length} serviço(s)</p>
+                  <p style={styles.textoFraco}>{numeroOrcamento(orcamento)} • {orcamento.cidade || 'Cidade não informada'} • {orcamento.itens.length} serviço(s)</p>
                   {orcamento.dataObra && <p style={styles.textoFraco}>Obra: {orcamento.dataObra} {orcamento.horaObra || ''}</p>}
                   <span style={styles.status}>{orcamento.status}</span>
                 </div>

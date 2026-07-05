@@ -7,19 +7,57 @@ import type { Servico } from '../models/Servico';
 const ORCAMENTOS_KEY = 'gesso-smj-orcamentos';
 const PRECOS_KEY = 'gesso-smj-precos';
 
+export function numerarOrcamentos(orcamentos: Orcamento[]): Orcamento[] {
+  const usados = new Set<number>();
+
+  orcamentos.forEach((orcamento) => {
+    if (typeof orcamento.numero === 'number' && orcamento.numero > 0) {
+      usados.add(orcamento.numero);
+    }
+  });
+
+  let proximo = 1;
+
+  return orcamentos.map((orcamento) => {
+    if (typeof orcamento.numero === 'number' && orcamento.numero > 0) {
+      return orcamento;
+    }
+
+    while (usados.has(proximo)) proximo += 1;
+    usados.add(proximo);
+
+    return {
+      ...orcamento,
+      numero: proximo,
+    };
+  });
+}
+
+export function proximoNumeroOrcamento(orcamentos: Orcamento[]): number {
+  const maiorNumero = orcamentos.reduce((maior, orcamento) => {
+    const numero = orcamento.numero || 0;
+    return numero > maior ? numero : maior;
+  }, 0);
+
+  return maiorNumero + 1;
+}
+
 export function carregarOrcamentos(): Orcamento[] {
   const dados = localStorage.getItem(ORCAMENTOS_KEY);
 
   if (!dados) {
-    salvarOrcamentos(orcamentosIniciais);
-    return orcamentosIniciais;
+    const iniciaisNumerados = numerarOrcamentos(orcamentosIniciais);
+    salvarOrcamentos(iniciaisNumerados);
+    return iniciaisNumerados;
   }
 
-  return JSON.parse(dados);
+  const orcamentos = numerarOrcamentos(JSON.parse(dados));
+  salvarOrcamentos(orcamentos);
+  return orcamentos;
 }
 
 export function salvarOrcamentos(orcamentos: Orcamento[]) {
-  localStorage.setItem(ORCAMENTOS_KEY, JSON.stringify(orcamentos));
+  localStorage.setItem(ORCAMENTOS_KEY, JSON.stringify(numerarOrcamentos(orcamentos)));
 }
 
 export function carregarTabelaPrecos(): Servico[] {

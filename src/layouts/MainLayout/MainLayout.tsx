@@ -14,7 +14,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: '#F5F7FB',
+        background: 'radial-gradient(circle at top left, #EAF0FF 0, #F7F8FC 34%, #F2F5FA 100%)',
       }}
     >
       <Header />
@@ -23,9 +23,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
         style={{
           flex: 1,
           width: '100%',
-          maxWidth: 1200,
+          maxWidth: 980,
           margin: '0 auto',
-          padding: '18px 16px 96px',
+          padding: '18px 16px calc(112px + env(safe-area-inset-bottom))',
           boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',

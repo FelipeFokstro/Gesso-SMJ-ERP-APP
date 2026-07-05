@@ -12,6 +12,7 @@ export interface ItemOrcamento {
 
 export interface Orcamento {
   id: number;
+  numero?: number;
   clienteId?: string;
   cliente: string;
   telefone: string;

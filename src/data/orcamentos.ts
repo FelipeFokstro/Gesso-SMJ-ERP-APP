@@ -3,6 +3,7 @@ import type { Orcamento } from '../models/Orcamento';
 export const orcamentosIniciais: Orcamento[] = [
   {
     id: 1,
+    numero: 1,
     cliente: 'Farmácia Fred',
     telefone: '',
     cidade: 'Santa Maria de Jetibá',

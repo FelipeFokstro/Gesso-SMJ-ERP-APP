@@ -1,99 +1,32 @@
 .button {
   border: none;
-  border-radius: 14px;
-
+  border-radius: 18px;
   cursor: pointer;
-
-  font-weight: 600;
-
-  font-family: Inter, "Segoe UI", sans-serif;
-
-  transition: all .20s ease;
-
+  font-weight: 800;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
   display: inline-flex;
   justify-content: center;
   align-items: center;
-
   gap: 8px;
-
   user-select: none;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(0,0,0,.12);
-}
-
-.button:active {
-  transform: scale(.98);
-}
-
-.button:disabled {
-  opacity: .55;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* =============================== */
-/* PRIMARY */
-/* =============================== */
-
-.button--primary {
-  background: linear-gradient(135deg,#0F172A,#1E3A8A);
-  color: white;
-}
-
-/* =============================== */
-/* SECONDARY */
-/* =============================== */
-
-.button--secondary {
-  background: #2563EB;
-  color: white;
-}
-
-/* =============================== */
-/* DANGER */
-/* =============================== */
-
-.button--danger {
-  background: #DC2626;
-  color: white;
-}
-
-/* =============================== */
-/* OUTLINE */
-/* =============================== */
-
-.button--outline {
-  background: white;
-  color: #0F172A;
-  border: 2px solid #CBD5E1;
-}
-
-/* =============================== */
-/* TAMANHOS */
-/* =============================== */
-
-.button--sm {
-  min-height: 38px;
-  padding: 0 16px;
-  font-size: 14px;
-}
-
-.button--md {
-  min-height: 46px;
-  padding: 0 22px;
-  font-size: 15px;
-}
-
-.button--lg {
-  min-height: 54px;
-  padding: 0 28px;
-  font-size: 17px;
-}
-
-.button--full {
-  width: 100%;
+.button:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 23, 42, .12); }
+.button:active { transform: scale(.98); }
+.button:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+.button--primary { background: linear-gradient(135deg,#101a38,#1b4fe0); color: white; box-shadow: 0 10px 24px rgba(30, 64, 175, .18); }
+.button--secondary { background: linear-gradient(135deg,#2f6df6,#4f8cff); color: white; box-shadow: 0 10px 22px rgba(37, 99, 235, .16); }
+.button--danger { background: #EF4444; color: white; }
+.button--outline { background: rgba(255,255,255,.9); color: #0F172A; border: 1.5px solid #D7DEEA; box-shadow: 0 6px 16px rgba(15, 23, 42, .04); }
+.button--sm { min-height: 36px; padding: 0 14px; font-size: 13px; border-radius: 14px; }
+.button--md { min-height: 48px; padding: 0 20px; font-size: 15px; }
+.button--lg { min-height: 56px; padding: 0 26px; font-size: 17px; }
+.button--full { width: 100%; }
+@media (max-width: 520px) {
+  .button--md { min-height: 50px; font-size: 15px; }
+  .button--lg { min-height: 58px; font-size: 16px; }
 }

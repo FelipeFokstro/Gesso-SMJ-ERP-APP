@@ -2,11 +2,12 @@ import { NavLink } from 'react-router-dom';
 import './BottomNavigation.css';
 
 const menuItems = [
-  { label: 'Início', path: '/' },
-  { label: 'Clientes', path: '/clientes' },
-  { label: 'Obras', path: '/obras' },
-  { label: 'Agenda', path: '/agenda' },
-  { label: 'Mais', path: '/financeiro' },
+  { label: 'Início', icon: '⌂', path: '/' },
+  { label: 'Obras', icon: '▣', path: '/obras' },
+  { label: 'Agenda', icon: '◇', path: '/agenda' },
+  { label: 'Estoque', icon: '▤', path: '/estoque' },
+  { label: 'Financ.', icon: '$', path: '/financeiro' },
+  { label: 'Backup', icon: '↥', path: '/configuracoes' },
 ];
 
 export default function BottomNavigation() {
@@ -20,6 +21,7 @@ export default function BottomNavigation() {
             `bottom-navigation__item ${isActive ? 'bottom-navigation__item--active' : ''}`
           }
         >
+          <span className="bottom-navigation__icon">{item.icon}</span>
           <span className="bottom-navigation__label">{item.label}</span>
         </NavLink>
       ))}
