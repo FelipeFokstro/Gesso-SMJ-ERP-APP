@@ -1,0 +1,24 @@
+.card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+  
+  .card__title {
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+  }
+  
+  .card__subtitle {
+    margin: 0 0 12px;
+    font-size: 14px;
+    color: #6b7280;
+  }
+  
+  .card__content {
+    margin-top: 8px;
+  }
