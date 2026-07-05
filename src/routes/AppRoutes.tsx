@@ -7,6 +7,7 @@ import Financeiro from '../pages/Financeiro';
 import Catalogo from '../pages/Catalogo';
 import Configuracoes from '../pages/Configuracoes';
 import Agenda from '../pages/Agenda/agenda';
+import Obras from '../pages/Obras';
 
 // CLIENTES
 import Clientes from '../pages/Clientes/Clientes';
@@ -26,6 +27,7 @@ export default function AppRoutes() {
         <Route path="/catalogo" element={<Catalogo />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="/agenda" element={<Agenda />} />
+        <Route path="/obras" element={<Obras />} />
 
         {/* CLIENTES */}
         <Route path="/clientes" element={<Clientes />} />

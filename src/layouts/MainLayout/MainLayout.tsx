@@ -1,22 +1,11 @@
-import { ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import Header from '../../components/Header';
+import BottomNavigation from '../../components/BottomNavigation';
 import { colors } from '../../theme';
 
 interface MainLayoutProps {
   children: ReactNode;
 }
-
-const menuItems = [
-  { label: 'Dashboard', path: '/' },
-  { label: 'Orçamentos', path: '/orcamentos' },
-  { label: 'Clientes', path: '/clientes' },
-  { label: 'Obras', path: '/obras' },
-  { label: 'Agenda', path: '/agenda' },
-  { label: 'Financeiro', path: '/financeiro' },
-  { label: 'Estoque', path: '/estoque' },
-  { label: 'Catálogo', path: '/catalogo' },
-];
 
 export default function MainLayout({ children }: MainLayoutProps) {
   return (
@@ -30,56 +19,24 @@ export default function MainLayout({ children }: MainLayoutProps) {
     >
       <Header />
 
-      <nav
-        style={{
-          background: '#fff',
-          borderBottom: '1px solid #E5E7EB',
-          padding: '12px 24px',
-          display: 'flex',
-          gap: 12,
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-        }}
-      >
-        {menuItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            style={({ isActive }) => ({
-              padding: '8px 16px',
-              borderRadius: 8,
-              textDecoration: 'none',
-              fontWeight: 600,
-              transition: '0.2s',
-
-              background: isActive ? colors.primary : 'transparent',
-              color: isActive ? '#fff' : colors.text,
-              border: `1px solid ${
-                isActive ? colors.primary : '#E5E7EB'
-              }`,
-            })}
-          >
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-
       <main
         style={{
           flex: 1,
           width: '100%',
           maxWidth: 1200,
           margin: '0 auto',
-          padding: 24,
+          padding: '18px 16px 96px',
           boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
-          gap: 20,
+          gap: 18,
           color: colors.text,
         }}
       >
         {children}
       </main>
+
+      <BottomNavigation />
     </div>
   );
 }

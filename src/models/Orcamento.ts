@@ -12,6 +12,7 @@ export interface ItemOrcamento {
 
 export interface Orcamento {
   id: number;
+  clienteId?: string;
   cliente: string;
   telefone: string;
   cidade: string;
@@ -30,4 +31,5 @@ export interface Orcamento {
   equipe?: string;
   observacoesExecucao?: string;
   criadoEm: string;
+  atualizadoEm?: string;
 }
