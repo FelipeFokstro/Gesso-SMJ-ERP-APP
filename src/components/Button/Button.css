@@ -1,0 +1,51 @@
+.button {
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  
+  .button--primary {
+    background: #0A2A66;
+    color: white;
+  }
+  
+  .button--secondary {
+    background: #3B82F6;
+    color: white;
+  }
+  
+  .button--danger {
+    background: #EF4444;
+    color: white;
+  }
+  
+  .button--outline {
+    background: transparent;
+    border: 1px solid #0A2A66;
+    color: #0A2A66;
+  }
+  
+  .button--sm {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  
+  .button--md {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+  
+  .button--lg {
+    padding: 16px 20px;
+    font-size: 18px;
+  }
+  
+  .button--full {
+    width: 100%;
+  }
+  
+  .button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
