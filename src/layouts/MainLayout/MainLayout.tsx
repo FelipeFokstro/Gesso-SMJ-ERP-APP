@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import Header from '../../components/Header';
-import { colors, spacing } from '../../theme';
+import { colors } from '../../theme';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -13,7 +13,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        background: colors.background,
+        background: '#F5F7FB',
       }}
     >
       <Header />
@@ -21,7 +21,19 @@ export default function MainLayout({ children }: MainLayoutProps) {
       <main
         style={{
           flex: 1,
-          padding: spacing.lg,
+          width: '100%',
+          maxWidth: 1200,
+          margin: '0 auto',
+
+          padding: 24,
+
+          boxSizing: 'border-box',
+
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 20,
+
+          color: colors.text,
         }}
       >
         {children}

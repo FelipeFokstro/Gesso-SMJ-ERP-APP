@@ -1,51 +1,99 @@
 .button {
-    border: none;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: 600;
-  }
-  
-  .button--primary {
-    background: #0A2A66;
-    color: white;
-  }
-  
-  .button--secondary {
-    background: #3B82F6;
-    color: white;
-  }
-  
-  .button--danger {
-    background: #EF4444;
-    color: white;
-  }
-  
-  .button--outline {
-    background: transparent;
-    border: 1px solid #0A2A66;
-    color: #0A2A66;
-  }
-  
-  .button--sm {
-    padding: 8px 12px;
-    font-size: 14px;
-  }
-  
-  .button--md {
-    padding: 12px 16px;
-    font-size: 16px;
-  }
-  
-  .button--lg {
-    padding: 16px 20px;
-    font-size: 18px;
-  }
-  
-  .button--full {
-    width: 100%;
-  }
-  
-  .button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+  border: none;
+  border-radius: 14px;
+
+  cursor: pointer;
+
+  font-weight: 600;
+
+  font-family: Inter, "Segoe UI", sans-serif;
+
+  transition: all .20s ease;
+
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+
+  gap: 8px;
+
+  user-select: none;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,.12);
+}
+
+.button:active {
+  transform: scale(.98);
+}
+
+.button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* =============================== */
+/* PRIMARY */
+/* =============================== */
+
+.button--primary {
+  background: linear-gradient(135deg,#0F172A,#1E3A8A);
+  color: white;
+}
+
+/* =============================== */
+/* SECONDARY */
+/* =============================== */
+
+.button--secondary {
+  background: #2563EB;
+  color: white;
+}
+
+/* =============================== */
+/* DANGER */
+/* =============================== */
+
+.button--danger {
+  background: #DC2626;
+  color: white;
+}
+
+/* =============================== */
+/* OUTLINE */
+/* =============================== */
+
+.button--outline {
+  background: white;
+  color: #0F172A;
+  border: 2px solid #CBD5E1;
+}
+
+/* =============================== */
+/* TAMANHOS */
+/* =============================== */
+
+.button--sm {
+  min-height: 38px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.button--md {
+  min-height: 46px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+.button--lg {
+  min-height: 54px;
+  padding: 0 28px;
+  font-size: 17px;
+}
+
+.button--full {
+  width: 100%;
+}
