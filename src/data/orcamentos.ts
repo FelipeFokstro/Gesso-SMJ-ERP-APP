@@ -6,6 +6,9 @@ export const orcamentosIniciais: Orcamento[] = [
     cliente: 'Farmácia Fred',
     telefone: '',
     cidade: 'Santa Maria de Jetibá',
+    bairro: '',
+    endereco: '',
+    referencia: '',
     itens: [
       {
         id: 1,
@@ -26,6 +29,9 @@ export const orcamentosIniciais: Orcamento[] = [
         subtotal: 2000,
       },
     ],
+    subtotal: 6800,
+    desconto: 0,
+    acrescimo: 0,
     total: 14600,
     observacoes: '',
     status: 'Em negociação',

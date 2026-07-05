@@ -14,18 +14,18 @@ export function calcularTotal(itens: ItemOrcamento[]): number {
 
 export function criarItemOrcamento(
   servico: Servico,
-  quantidade: number
+  quantidade: number,
+  valorUnitario?: number
 ): ItemOrcamento {
+  const valor = valorUnitario ?? servico.valorUnitario;
+
   return {
     id: Date.now(),
     servicoId: servico.id,
     nome: servico.nome,
     unidade: servico.unidade,
     quantidade,
-    valorUnitario: servico.valorUnitario,
-    subtotal: calcularSubtotal(
-      quantidade,
-      servico.valorUnitario
-    ),
+    valorUnitario: valor,
+    subtotal: quantidade * valor,
   };
 }

@@ -1,88 +1,29 @@
-import { colors, spacing, typography } from '../../theme';
+import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
+  const navigate = useNavigate();
+
   return (
     <header
+      onClick={() => navigate('/')}
       style={{
         height: 72,
         background: '#0F172A',
         color: '#FFFFFF',
-
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-
-        padding: `0 ${spacing.lg}px`,
-
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
-
+        padding: '0 24px',
+        cursor: 'pointer',
         position: 'sticky',
         top: 0,
         zIndex: 1000,
-
         boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-
-            background: '#1D4ED8',
-
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: 18,
-          }}
-        >
-          G
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            lineHeight: 1.1,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              letterSpacing: 0.3,
-              fontFamily:
-                'Inter, SF Pro Display, Segoe UI, sans-serif',
-            }}
-          >
-            Gesso SMJ
-          </span>
-
-          <span
-            style={{
-              fontSize: 12,
-              opacity: 0.8,
-              letterSpacing: 2,
-              textTransform: 'uppercase',
-              fontFamily:
-                'Inter, SF Pro Display, Segoe UI, sans-serif',
-            }}
-          >
-            ERP
-          </span>
-        </div>
+      <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
+        <strong style={{ fontSize: 22 }}>Gesso SMJ</strong>
+        <div style={{ fontSize: 12, opacity: 0.8, letterSpacing: 2 }}>ERP</div>
       </div>
     </header>
   );

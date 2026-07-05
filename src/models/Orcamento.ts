@@ -15,9 +15,19 @@ export interface Orcamento {
   cliente: string;
   telefone: string;
   cidade: string;
+  bairro?: string;
+  endereco?: string;
+  referencia?: string;
   itens: ItemOrcamento[];
+  subtotal: number;
+  desconto: number;
+  acrescimo: number;
   total: number;
   observacoes: string;
   status: StatusOrcamento;
+  dataObra?: string;
+  horaObra?: string;
+  equipe?: string;
+  observacoesExecucao?: string;
   criadoEm: string;
 }
