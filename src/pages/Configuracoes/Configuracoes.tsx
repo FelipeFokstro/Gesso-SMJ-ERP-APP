@@ -33,12 +33,19 @@ export default function Configuracoes() {
       <div style={styles.container}>
         <div>
           <h1 style={styles.titulo}>Backup</h1>
-          <p style={styles.subtitulo}>Exporte seus dados pelo compartilhamento do Android e envie para o sócio importar no celular dele.</p>
+          <p style={styles.subtitulo}>Salve o backup no celular ou compartilhe com o sócio para importar no aparelho dele.</p>
         </div>
 
-        <Card title="Backup manual" subtitle="Por enquanto a sincronização é feita por arquivo. Depois podemos evoluir para login e nuvem.">
+        <Card title="Backup manual" subtitle="O backup agora é salvo como arquivo no aparelho e também pode ser enviado pelo compartilhamento do Android.">
           <div style={styles.gridAcoes}>
-            <Button onClick={() => baixarBackup().catch(() => setMensagem('Não foi possível exportar o backup neste aparelho.'))}>Exportar backup</Button>
+            <Button onClick={async () => {
+              try {
+                const resultado = await baixarBackup();
+                setMensagem(resultado);
+              } catch (error) {
+                setMensagem(error instanceof Error ? error.message : 'Não foi possível salvar o backup neste aparelho.');
+              }
+            }}>Exportar backup</Button>
             <Button variant="outline" onClick={() => inputRef.current?.click()}>Importar backup</Button>
           </div>
 

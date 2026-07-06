@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -16,20 +19,7 @@ import logoGessoSMJ from '../../assets/logo-gesso-smj.png';
 
 
 function isAndroidApp() {
-  const capacitor = (window as any).Capacitor;
-  return Boolean(capacitor?.isNativePlatform?.());
-}
-
-async function carregarCapacitorCompartilhamento() {
-  const importar = new Function('nome', 'return import(nome)') as (nome: string) => Promise<any>;
-  const filesystem = await importar('@capacitor/filesystem');
-  const share = await importar('@capacitor/share');
-
-  return {
-    Filesystem: filesystem.Filesystem,
-    Directory: filesystem.Directory,
-    Share: share.Share,
-  };
+  return Capacitor.isNativePlatform();
 }
 
 function quebrarTexto(ctx: CanvasRenderingContext2D, texto: string, x: number, y: number, larguraMaxima: number, alturaLinha: number) {
@@ -74,18 +64,17 @@ function blobParaBase64(blob: Blob) {
   });
 }
 
-async function compartilharImagemNativa(blob: Blob, nomeArquivo: string, texto: string) {
+async function salvarImagemOrcamentoAndroid(blob: Blob, nomeArquivo: string, texto: string) {
   if (!isAndroidApp()) {
-    throw new Error('Compartilhamento nativo disponível somente no aplicativo instalado.');
+    throw new Error('Salvamento nativo disponível somente no aplicativo instalado.');
   }
 
-  const { Filesystem, Directory, Share } = await carregarCapacitorCompartilhamento();
   const base64 = await blobParaBase64(blob);
-  const caminho = `orcamentos/${nomeArquivo}`;
+  const caminho = `GessoSMJ/${nomeArquivo}`;
 
   await Filesystem.mkdir({
-    path: 'orcamentos',
-    directory: Directory.Cache,
+    path: 'GessoSMJ',
+    directory: Directory.Documents,
     recursive: true,
   }).catch(() => {
     // A pasta já pode existir.
@@ -94,21 +83,234 @@ async function compartilharImagemNativa(blob: Blob, nomeArquivo: string, texto: 
   await Filesystem.writeFile({
     path: caminho,
     data: base64,
-    directory: Directory.Cache,
+    directory: Directory.Documents,
     recursive: true,
   });
 
   const arquivo = await Filesystem.getUri({
     path: caminho,
-    directory: Directory.Cache,
+    directory: Directory.Documents,
   });
 
-  await Share.share({
-    title: 'Orçamento Gesso SMJ',
-    text: texto,
-    url: arquivo.uri,
-    dialogTitle: 'Compartilhar orçamento',
+  try {
+    await Share.share({
+      title: 'Orçamento Gesso SMJ',
+      text: texto,
+      url: arquivo.uri,
+      dialogTitle: 'Salvar ou enviar orçamento',
+    });
+  } catch {
+    // Mesmo se o compartilhamento falhar, o arquivo já foi salvo no aparelho.
+  }
+
+  return `Imagem salva no aparelho: ${nomeArquivo}`;
+}
+
+
+async function salvarPdfOrcamentoAndroid(blob: Blob, nomeArquivo: string, texto: string) {
+  if (!isAndroidApp()) {
+    throw new Error('Salvamento nativo disponível somente no aplicativo instalado.');
+  }
+
+  const base64 = await blobParaBase64(blob);
+  const caminho = `GessoSMJ/${nomeArquivo}`;
+
+  await Filesystem.mkdir({
+    path: 'GessoSMJ',
+    directory: Directory.Documents,
+    recursive: true,
+  }).catch(() => {
+    // A pasta já pode existir.
   });
+
+  await Filesystem.writeFile({
+    path: caminho,
+    data: base64,
+    directory: Directory.Documents,
+    recursive: true,
+  });
+
+  const arquivo = await Filesystem.getUri({
+    path: caminho,
+    directory: Directory.Documents,
+  });
+
+  try {
+    await Share.share({
+      title: 'Orçamento Gesso SMJ',
+      text: texto,
+      url: arquivo.uri,
+      dialogTitle: 'Salvar ou enviar orçamento em PDF',
+    });
+  } catch {
+    // Mesmo se o compartilhamento falhar, o PDF já foi salvo no aparelho.
+  }
+
+  return `PDF salvo no aparelho: ${nomeArquivo}`;
+}
+
+function baixarPdfWeb(blob: Blob, nomeArquivo: string) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = nomeArquivo;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+async function gerarPdfOrcamento(orcamento: Orcamento) {
+  const { jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const largura = 210;
+  const margem = 14;
+  let y = 14;
+
+  function textoLinha(texto: string, x: number, yAtual: number, tamanho = 10, estilo: 'normal' | 'bold' = 'normal', cor = '#0f172a') {
+    pdf.setFont('helvetica', estilo);
+    pdf.setFontSize(tamanho);
+    pdf.setTextColor(cor);
+    pdf.text(texto, x, yAtual);
+  }
+
+  function textoDireita(texto: string, x: number, yAtual: number, tamanho = 10, estilo: 'normal' | 'bold' = 'normal', cor = '#0f172a') {
+    pdf.setFont('helvetica', estilo);
+    pdf.setFontSize(tamanho);
+    pdf.setTextColor(cor);
+    pdf.text(texto, x, yAtual, { align: 'right' });
+  }
+
+  function linha(yAtual: number) {
+    pdf.setDrawColor(210, 220, 232);
+    pdf.setLineWidth(0.3);
+    pdf.line(margem, yAtual, largura - margem, yAtual);
+  }
+
+  function garantirEspaco(alturaNecessaria = 24) {
+    if (y + alturaNecessaria < 278) return;
+    pdf.addPage();
+    y = 18;
+  }
+
+  const logo = await carregarImagem(logoGessoSMJ);
+  pdf.addImage(logo, 'PNG', margem, y, 34, 34);
+
+  textoDireita('ORÇAMENTO', largura - margem, y + 8, 18, 'bold', '#0b2f4f');
+  textoDireita(numeroOrcamento(orcamento), largura - margem, y + 17, 11, 'bold', '#0f172a');
+  textoDireita(`Data: ${new Date(orcamento.criadoEm).toLocaleDateString('pt-BR')}`, largura - margem, y + 25, 10, 'normal', '#64748b');
+  y += 42;
+  linha(y);
+  y += 10;
+
+  textoLinha(orcamento.cliente || 'Cliente não informado', margem, y, 15, 'bold', '#0f172a');
+  y += 7;
+
+  const descricao = orcamento.observacoes || 'Execução de serviços em gesso e drywall conforme medições abaixo.';
+  const descLinhas = pdf.splitTextToSize(descricao, 182);
+  textoLinha(descLinhas[0] || '', margem, y, 10, 'normal', '#334155');
+  if (descLinhas.length > 1) {
+    descLinhas.slice(1, 3).forEach((linhaTexto: string) => {
+      y += 5;
+      textoLinha(linhaTexto, margem, y, 10, 'normal', '#334155');
+    });
+  }
+  y += 7;
+
+  const local = [orcamento.endereco, orcamento.bairro, orcamento.cidade, orcamento.referencia].filter(Boolean).join(' • ');
+  if (local) {
+    const linhasLocal = pdf.splitTextToSize(local, 182);
+    linhasLocal.slice(0, 2).forEach((linhaTexto: string) => {
+      textoLinha(linhaTexto, margem, y, 9, 'normal', '#64748b');
+      y += 5;
+    });
+    y += 2;
+  }
+
+  linha(y);
+  y += 9;
+  textoLinha('MEDIÇÕES E VALORES', margem, y, 12, 'bold', '#0b2f4f');
+  y += 8;
+
+  pdf.setFillColor(244, 247, 251);
+  pdf.roundedRect(margem, y - 5, largura - margem * 2, 9, 2, 2, 'F');
+  textoLinha('Serviço', margem + 3, y, 9, 'bold', '#334155');
+  textoDireita('Qtd.', 124, y, 9, 'bold', '#334155');
+  textoDireita('Valor', 162, y, 9, 'bold', '#334155');
+  textoDireita('Subtotal', largura - margem - 3, y, 9, 'bold', '#334155');
+  y += 9;
+
+  orcamento.itens.forEach((item) => {
+    garantirEspaco(14);
+    const nomeLinhas = pdf.splitTextToSize(item.nome, 78);
+    textoLinha(nomeLinhas[0], margem + 3, y, 9, 'bold', '#0f172a');
+    if (nomeLinhas[1]) {
+      y += 4.5;
+      textoLinha(nomeLinhas[1], margem + 3, y, 8, 'normal', '#64748b');
+    }
+    textoDireita(`${formatarQuantidade(item.quantidade)} ${item.unidade}`, 124, y, 9, 'normal', '#0f172a');
+    textoDireita(formatarMoeda(item.valorUnitario), 162, y, 9, 'normal', '#0f172a');
+    textoDireita(formatarMoeda(item.subtotal), largura - margem - 3, y, 9, 'bold', '#0b2f4f');
+    y += 8;
+    pdf.setDrawColor(235, 240, 246);
+    pdf.line(margem, y - 3, largura - margem, y - 3);
+  });
+
+  y += 4;
+  garantirEspaco(45);
+
+  if (orcamento.desconto > 0 || orcamento.acrescimo > 0) {
+    textoDireita('Subtotal', 154, y, 10, 'normal', '#64748b');
+    textoDireita(formatarMoeda(orcamento.subtotal), largura - margem, y, 10, 'bold', '#0f172a');
+    y += 7;
+  }
+  if (orcamento.desconto > 0) {
+    textoDireita('Desconto', 154, y, 10, 'normal', '#64748b');
+    textoDireita(`- ${formatarMoeda(orcamento.desconto)}`, largura - margem, y, 10, 'bold', '#b91c1c');
+    y += 7;
+  }
+  if (orcamento.acrescimo > 0) {
+    textoDireita('Acréscimo', 154, y, 10, 'normal', '#64748b');
+    textoDireita(formatarMoeda(orcamento.acrescimo), largura - margem, y, 10, 'bold', '#0f172a');
+    y += 7;
+  }
+
+  pdf.setFillColor(6, 47, 79);
+  pdf.roundedRect(margem, y, largura - margem * 2, 24, 4, 4, 'F');
+  textoLinha(orcamento.desconto > 0 ? 'VALOR TOTAL COM DESCONTO' : 'VALOR TOTAL', margem + 6, y + 10, 11, 'bold', '#ffffff');
+  textoDireita(formatarMoeda(orcamento.total), largura - margem - 6, y + 16, 18, 'bold', '#ffffff');
+  y += 34;
+
+  garantirEspaco(38);
+  textoLinha('OBSERVAÇÕES', margem, y, 11, 'bold', '#0b2f4f');
+  y += 7;
+  [
+    'Material e mão de obra de gesso inclusos.',
+    'Material de emassamento por conta do cliente quando houver emassamento.',
+    'Pintura não inclusa.',
+    'Validade do orçamento: 15 dias.',
+  ].forEach((obs) => {
+    textoLinha(`- ${obs}`, margem, y, 9, 'normal', '#334155');
+    y += 5.5;
+  });
+
+  garantirEspaco(48);
+  y += 5;
+  pdf.setFillColor(6, 47, 79);
+  pdf.roundedRect(margem, y, largura - margem * 2, 41, 4, 4, 'F');
+  textoLinha('CONTATOS', margem + 6, y + 9, 10, 'bold', '#ffffff');
+  textoLinha('Felipe: (27) 99797-9021', margem + 6, y + 18, 9, 'normal', '#ffffff');
+  textoLinha('Vitor: (27) 99839-8331', margem + 6, y + 26, 9, 'normal', '#ffffff');
+  textoLinha('Fábrica: Vila dos Italianos, Santa Maria de Jetibá - ES', margem + 6, y + 34, 8.5, 'normal', '#ffffff');
+  textoDireita('Ref.: em cima da serraria do Elimar Schwambach', largura - margem - 6, y + 34, 8, 'normal', '#ffffff');
+
+  const totalPaginas = pdf.getNumberOfPages();
+  for (let i = 1; i <= totalPaginas; i += 1) {
+    pdf.setPage(i);
+    textoDireita(`Página ${i}/${totalPaginas}`, largura - margem, 290, 8, 'normal', '#94a3b8');
+  }
+
+  return pdf.output('blob');
 }
 
 function formatarQuantidade(valor: number) {
@@ -554,40 +756,59 @@ export default function Orcamentos() {
 
   async function compartilharOrcamento(orcamento: Orcamento) {
     const texto = `Gesso SMJ\n${numeroOrcamento(orcamento)}\nCliente: ${orcamento.cliente}\nTotal: ${formatarMoeda(orcamento.total)}\nStatus: ${orcamento.status}`;
+    const nomeBase = `orcamento-${numeroOrcamento(orcamento).replace(/[^a-zA-Z0-9]/g, '-')}`;
 
     try {
-      const blob = await gerarImagemOrcamento(orcamento);
-      const nomeArquivo = `orcamento-${numeroOrcamento(orcamento).replace(/[^a-zA-Z0-9]/g, '-')}.png`;
+      const blob = await gerarPdfOrcamento(orcamento);
+      const nomeArquivo = `${nomeBase}.pdf`;
 
-      try {
-        await compartilharImagemNativa(blob, nomeArquivo, texto);
-        return;
-      } catch (erroNativo) {
-        console.warn('Compartilhamento nativo indisponível, usando fallback web:', erroNativo);
-      }
-
-      const arquivo = new File([blob], nomeArquivo, { type: 'image/png' });
-
-      if (navigator.share && navigator.canShare?.({ files: [arquivo] })) {
-        await navigator.share({ title: 'Orçamento Gesso SMJ', text: texto, files: [arquivo] });
+      if (isAndroidApp()) {
+        const resultado = await salvarPdfOrcamentoAndroid(blob, nomeArquivo, texto);
+        alert(resultado);
         return;
       }
 
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = nomeArquivo;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(link.href);
+      baixarPdfWeb(blob, nomeArquivo);
       await navigator.clipboard?.writeText(texto);
-      alert('Imagem do orçamento gerada. Se estiver no navegador, ela foi baixada. O resumo também foi copiado.');
-    } catch {
+      alert('PDF do orçamento gerado e baixado. O resumo também foi copiado.');
+    } catch (erroPdf) {
+      console.warn('Falha ao gerar PDF, tentando gerar imagem:', erroPdf);
+
       try {
-        await navigator.clipboard.writeText(texto);
-        alert('Não foi possível gerar a imagem agora. Resumo copiado.');
+        const blobImagem = await gerarImagemOrcamento(orcamento);
+        const nomeImagem = `${nomeBase}.png`;
+
+        try {
+          const resultado = await salvarImagemOrcamentoAndroid(blobImagem, nomeImagem, texto);
+          alert(resultado);
+          return;
+        } catch (erroNativo) {
+          console.warn('Salvamento nativo de imagem indisponível, usando fallback web:', erroNativo);
+        }
+
+        const arquivo = new File([blobImagem], nomeImagem, { type: 'image/png' });
+
+        if (navigator.share && navigator.canShare?.({ files: [arquivo] })) {
+          await navigator.share({ title: 'Orçamento Gesso SMJ', text: texto, files: [arquivo] });
+          return;
+        }
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blobImagem);
+        link.download = nomeImagem;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(link.href);
+        await navigator.clipboard?.writeText(texto);
+        alert('Não foi possível gerar PDF. A imagem do orçamento foi gerada e baixada.');
       } catch {
-        alert('Não foi possível compartilhar agora.');
+        try {
+          await navigator.clipboard.writeText(texto);
+          alert('Não foi possível gerar PDF nem imagem agora. Resumo copiado.');
+        } catch {
+          alert('Não foi possível compartilhar agora.');
+        }
       }
     }
   }

@@ -1,22 +1,12 @@
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
 const BACKUP_VERSION = '1.0';
 const BACKUP_PREFIX = 'gesso-smj-';
 
 function isAndroidApp() {
-  const capacitor = (window as any).Capacitor;
-  return Boolean(capacitor?.isNativePlatform?.());
-}
-
-async function carregarCapacitor() {
-  const importar = new Function('nome', 'return import(nome)') as (nome: string) => Promise<any>;
-  const filesystem = await importar('@capacitor/filesystem');
-  const share = await importar('@capacitor/share');
-
-  return {
-    Filesystem: filesystem.Filesystem,
-    Directory: filesystem.Directory,
-    Encoding: filesystem.Encoding,
-    Share: share.Share,
-  };
+  return Capacitor.isNativePlatform();
 }
 
 export interface BackupGessoSMJ {
@@ -67,13 +57,12 @@ function baixarBackupWeb(conteudo: string, nomeArquivo: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function compartilharBackupAndroid(conteudo: string, nomeArquivo: string) {
-  const { Filesystem, Directory, Encoding, Share } = await carregarCapacitor();
-  const caminho = `backups/${nomeArquivo}`;
+async function salvarBackupAndroid(conteudo: string, nomeArquivo: string) {
+  const caminho = `GessoSMJ/${nomeArquivo}`;
 
   await Filesystem.mkdir({
-    path: 'backups',
-    directory: Directory.Cache,
+    path: 'GessoSMJ',
+    directory: Directory.Documents,
     recursive: true,
   }).catch(() => {
     // A pasta pode já existir.
@@ -82,22 +71,28 @@ async function compartilharBackupAndroid(conteudo: string, nomeArquivo: string) 
   await Filesystem.writeFile({
     path: caminho,
     data: conteudo,
-    directory: Directory.Cache,
+    directory: Directory.Documents,
     encoding: Encoding.UTF8,
     recursive: true,
   });
 
   const arquivo = await Filesystem.getUri({
     path: caminho,
-    directory: Directory.Cache,
+    directory: Directory.Documents,
   });
 
-  await Share.share({
-    title: 'Backup Gesso SMJ ERP',
-    text: 'Backup dos dados do Gesso SMJ ERP.',
-    url: arquivo.uri,
-    dialogTitle: 'Enviar backup',
-  });
+  try {
+    await Share.share({
+      title: 'Backup Gesso SMJ ERP',
+      text: 'Backup dos dados do Gesso SMJ ERP.',
+      url: arquivo.uri,
+      dialogTitle: 'Salvar ou enviar backup',
+    });
+  } catch {
+    // Mesmo se o compartilhamento falhar, o arquivo já foi salvo no aparelho.
+  }
+
+  return `Backup salvo no aparelho: ${nomeArquivo}`;
 }
 
 export async function baixarBackup() {
@@ -106,11 +101,11 @@ export async function baixarBackup() {
   const nomeArquivo = gerarNomeArquivo();
 
   if (isAndroidApp()) {
-    await compartilharBackupAndroid(conteudo, nomeArquivo);
-    return;
+    return salvarBackupAndroid(conteudo, nomeArquivo);
   }
 
   baixarBackupWeb(conteudo, nomeArquivo);
+  return `Backup baixado: ${nomeArquivo}`;
 }
 
 export async function importarBackup(file: File) {
