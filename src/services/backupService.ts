@@ -1,6 +1,24 @@
 const BACKUP_VERSION = '1.0';
 const BACKUP_PREFIX = 'gesso-smj-';
 
+function isAndroidApp() {
+  const capacitor = (window as any).Capacitor;
+  return Boolean(capacitor?.isNativePlatform?.());
+}
+
+async function carregarCapacitor() {
+  const importar = new Function('nome', 'return import(nome)') as (nome: string) => Promise<any>;
+  const filesystem = await importar('@capacitor/filesystem');
+  const share = await importar('@capacitor/share');
+
+  return {
+    Filesystem: filesystem.Filesystem,
+    Directory: filesystem.Directory,
+    Encoding: filesystem.Encoding,
+    Share: share.Share,
+  };
+}
+
 export interface BackupGessoSMJ {
   app: 'Gesso SMJ ERP';
   version: string;
@@ -14,6 +32,7 @@ export function gerarBackup(): BackupGessoSMJ {
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index);
     if (!key) continue;
+
     if (key.startsWith(BACKUP_PREFIX)) {
       const value = localStorage.getItem(key);
       if (value !== null) storage[key] = value;
@@ -28,17 +47,70 @@ export function gerarBackup(): BackupGessoSMJ {
   };
 }
 
-export function baixarBackup() {
-  const backup = gerarBackup();
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+function gerarNomeArquivo() {
+  const data = new Date().toISOString().slice(0, 10);
+  const hora = new Date().toTimeString().slice(0, 5).replace(':', '-');
+  return `backup-gesso-smj-${data}-${hora}.json`;
+}
+
+function baixarBackupWeb(conteudo: string, nomeArquivo: string) {
+  const blob = new Blob([conteudo], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const data = new Date().toISOString().slice(0, 10);
 
   link.href = url;
-  link.download = `backup-gesso-smj-${data}.json`;
+  link.download = nomeArquivo;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function compartilharBackupAndroid(conteudo: string, nomeArquivo: string) {
+  const { Filesystem, Directory, Encoding, Share } = await carregarCapacitor();
+  const caminho = `backups/${nomeArquivo}`;
+
+  await Filesystem.mkdir({
+    path: 'backups',
+    directory: Directory.Cache,
+    recursive: true,
+  }).catch(() => {
+    // A pasta pode já existir.
+  });
+
+  await Filesystem.writeFile({
+    path: caminho,
+    data: conteudo,
+    directory: Directory.Cache,
+    encoding: Encoding.UTF8,
+    recursive: true,
+  });
+
+  const arquivo = await Filesystem.getUri({
+    path: caminho,
+    directory: Directory.Cache,
+  });
+
+  await Share.share({
+    title: 'Backup Gesso SMJ ERP',
+    text: 'Backup dos dados do Gesso SMJ ERP.',
+    url: arquivo.uri,
+    dialogTitle: 'Enviar backup',
+  });
+}
+
+export async function baixarBackup() {
+  const backup = gerarBackup();
+  const conteudo = JSON.stringify(backup, null, 2);
+  const nomeArquivo = gerarNomeArquivo();
+
+  if (isAndroidApp()) {
+    await compartilharBackupAndroid(conteudo, nomeArquivo);
+    return;
+  }
+
+  baixarBackupWeb(conteudo, nomeArquivo);
 }
 
 export async function importarBackup(file: File) {

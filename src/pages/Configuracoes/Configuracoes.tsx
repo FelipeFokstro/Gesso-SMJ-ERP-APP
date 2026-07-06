@@ -33,12 +33,12 @@ export default function Configuracoes() {
       <div style={styles.container}>
         <div>
           <h1 style={styles.titulo}>Backup</h1>
-          <p style={styles.subtitulo}>Exporte seus dados e envie para o sócio importar no celular dele.</p>
+          <p style={styles.subtitulo}>Exporte seus dados pelo compartilhamento do Android e envie para o sócio importar no celular dele.</p>
         </div>
 
         <Card title="Backup manual" subtitle="Por enquanto a sincronização é feita por arquivo. Depois podemos evoluir para login e nuvem.">
           <div style={styles.gridAcoes}>
-            <Button onClick={baixarBackup}>Baixar backup</Button>
+            <Button onClick={() => baixarBackup().catch(() => setMensagem('Não foi possível exportar o backup neste aparelho.'))}>Exportar backup</Button>
             <Button variant="outline" onClick={() => inputRef.current?.click()}>Importar backup</Button>
           </div>
 
@@ -55,7 +55,7 @@ export default function Configuracoes() {
 
         <Card title="Como usar com o Vitor">
           <ol style={styles.lista}>
-            <li>No seu app, toque em <strong>Baixar backup</strong>.</li>
+            <li>No seu app, toque em <strong>Exportar backup</strong>.</li>
             <li>Envie o arquivo pelo WhatsApp para o Vitor.</li>
             <li>No celular dele, ele abre o app e toca em <strong>Importar backup</strong>.</li>
             <li>Depois de importar, o app recarrega com orçamentos, estoque, financeiro, catálogo e obras.</li>

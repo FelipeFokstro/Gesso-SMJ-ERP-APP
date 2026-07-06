@@ -8,31 +8,34 @@ export default function Header() {
     <header
       onClick={() => navigate('/')}
       style={{
-        minHeight: 112,
+        height: 82,
+        minHeight: 82,
         background: 'linear-gradient(135deg, #062f4f 0%, #08385f 55%, #0B1228 100%)',
         color: '#FFFFFF',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: '12px 20px 16px',
+        padding: '8px 16px 10px',
         cursor: 'pointer',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000,
-        boxShadow: '0 10px 28px rgba(15,23,42,0.16)',
-        borderBottomLeftRadius: 28,
-        borderBottomRightRadius: 28,
+        position: 'relative',
+        boxShadow: '0 8px 22px rgba(15,23,42,0.14)',
+        borderBottomLeftRadius: 18,
+        borderBottomRightRadius: 18,
+        boxSizing: 'border-box',
+        flexShrink: 0,
       }}
     >
       <img
         src={logoGessoSMJ}
         alt="Gesso SMJ"
         style={{
-          width: 'min(210px, 64vw)',
-          height: 86,
+          width: 'auto',
+          maxWidth: 'min(164px, 52vw)',
+          height: 58,
+          maxHeight: 58,
           objectFit: 'contain',
           display: 'block',
-          filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.20))',
+          filter: 'drop-shadow(0 8px 14px rgba(0,0,0,0.20))',
         }}
       />
     </header>

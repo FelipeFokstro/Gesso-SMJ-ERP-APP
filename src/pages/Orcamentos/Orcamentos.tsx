@@ -15,6 +15,23 @@ import { formatarMoeda } from '../../utils/formatarMoeda';
 import logoGessoSMJ from '../../assets/logo-gesso-smj.png';
 
 
+function isAndroidApp() {
+  const capacitor = (window as any).Capacitor;
+  return Boolean(capacitor?.isNativePlatform?.());
+}
+
+async function carregarCapacitorCompartilhamento() {
+  const importar = new Function('nome', 'return import(nome)') as (nome: string) => Promise<any>;
+  const filesystem = await importar('@capacitor/filesystem');
+  const share = await importar('@capacitor/share');
+
+  return {
+    Filesystem: filesystem.Filesystem,
+    Directory: filesystem.Directory,
+    Share: share.Share,
+  };
+}
+
 function quebrarTexto(ctx: CanvasRenderingContext2D, texto: string, x: number, y: number, larguraMaxima: number, alturaLinha: number) {
   const palavras = texto.split(' ');
   let linha = '';
@@ -41,6 +58,56 @@ function carregarImagem(src: string) {
     imagem.onload = () => resolve(imagem);
     imagem.onerror = reject;
     imagem.src = src;
+  });
+}
+
+
+function blobParaBase64(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const resultado = String(reader.result || '');
+      resolve(resultado.includes(',') ? resultado.split(',')[1] : resultado);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function compartilharImagemNativa(blob: Blob, nomeArquivo: string, texto: string) {
+  if (!isAndroidApp()) {
+    throw new Error('Compartilhamento nativo disponível somente no aplicativo instalado.');
+  }
+
+  const { Filesystem, Directory, Share } = await carregarCapacitorCompartilhamento();
+  const base64 = await blobParaBase64(blob);
+  const caminho = `orcamentos/${nomeArquivo}`;
+
+  await Filesystem.mkdir({
+    path: 'orcamentos',
+    directory: Directory.Cache,
+    recursive: true,
+  }).catch(() => {
+    // A pasta já pode existir.
+  });
+
+  await Filesystem.writeFile({
+    path: caminho,
+    data: base64,
+    directory: Directory.Cache,
+    recursive: true,
+  });
+
+  const arquivo = await Filesystem.getUri({
+    path: caminho,
+    directory: Directory.Cache,
+  });
+
+  await Share.share({
+    title: 'Orçamento Gesso SMJ',
+    text: texto,
+    url: arquivo.uri,
+    dialogTitle: 'Compartilhar orçamento',
   });
 }
 
@@ -486,11 +553,20 @@ export default function Orcamentos() {
   }
 
   async function compartilharOrcamento(orcamento: Orcamento) {
-    const texto = `Gesso SMJ\nOrçamento: ${orcamento.cliente}\nTotal: ${formatarMoeda(orcamento.total)}\nStatus: ${orcamento.status}`;
+    const texto = `Gesso SMJ\n${numeroOrcamento(orcamento)}\nCliente: ${orcamento.cliente}\nTotal: ${formatarMoeda(orcamento.total)}\nStatus: ${orcamento.status}`;
 
     try {
       const blob = await gerarImagemOrcamento(orcamento);
-      const arquivo = new File([blob], `orcamento-gesso-smj-${orcamento.id}.png`, { type: 'image/png' });
+      const nomeArquivo = `orcamento-${numeroOrcamento(orcamento).replace(/[^a-zA-Z0-9]/g, '-')}.png`;
+
+      try {
+        await compartilharImagemNativa(blob, nomeArquivo, texto);
+        return;
+      } catch (erroNativo) {
+        console.warn('Compartilhamento nativo indisponível, usando fallback web:', erroNativo);
+      }
+
+      const arquivo = new File([blob], nomeArquivo, { type: 'image/png' });
 
       if (navigator.share && navigator.canShare?.({ files: [arquivo] })) {
         await navigator.share({ title: 'Orçamento Gesso SMJ', text: texto, files: [arquivo] });
@@ -499,11 +575,13 @@ export default function Orcamentos() {
 
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `orcamento-gesso-smj-${orcamento.id}.png`;
+      link.download = nomeArquivo;
+      document.body.appendChild(link);
       link.click();
+      link.remove();
       URL.revokeObjectURL(link.href);
       await navigator.clipboard?.writeText(texto);
-      alert('Imagem do orçamento gerada. O resumo também foi copiado.');
+      alert('Imagem do orçamento gerada. Se estiver no navegador, ela foi baixada. O resumo também foi copiado.');
     } catch {
       try {
         await navigator.clipboard.writeText(texto);
@@ -668,33 +746,33 @@ export default function Orcamentos() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: { display: 'flex', flexDirection: 'column', gap: 16 },
-  topo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
-  titulo: { margin: 0, fontSize: 28, color: '#0f172a' },
-  subtitulo: { margin: '6px 0 0', color: '#64748b' },
+  container: { display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: '100%', overflowX: 'hidden' },
+  topo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', width: '100%' },
+  titulo: { margin: 0, fontSize: 'clamp(24px, 7vw, 28px)', color: '#0f172a', lineHeight: 1.05 },
+  subtitulo: { margin: '6px 0 0', color: '#64748b', fontSize: 14, lineHeight: 1.35 },
   cardTitulo: { margin: '0 0 12px', fontSize: 20, color: '#0f172a' },
   textoFraco: { margin: '4px 0', color: '#64748b', fontSize: 14 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 12 },
-  gridServico: { display: 'grid', gridTemplateColumns: 'minmax(220px, 2fr) minmax(120px, 1fr) minmax(140px, 1fr) auto', gap: 12, alignItems: 'end' },
-  gridFiltros: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12, marginBottom: 16 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12, marginTop: 12, width: '100%', maxWidth: '100%' },
+  gridServico: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 12, alignItems: 'end', width: '100%', maxWidth: '100%', overflow: 'hidden' },
+  gridFiltros: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 12, marginBottom: 16, width: '100%' },
   campo: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 },
-  campoSemMargem: { display: 'flex', flexDirection: 'column', gap: 6 },
+  campoSemMargem: { display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, width: '100%' },
   label: { fontSize: 14, fontWeight: 600, color: '#334155' },
-  select: { width: '100%', minHeight: 44, borderRadius: 10, border: '1px solid #cbd5e1', padding: '0 12px', fontSize: 15, background: '#fff' },
+  select: { width: '100%', minWidth: 0, minHeight: 50, borderRadius: 18, border: '1.5px solid #D8E0EC', padding: '0 12px', fontSize: 15, fontWeight: 650, background: '#fff', boxSizing: 'border-box', color: '#0f172a' },
   textarea: { width: '100%', minHeight: 90, borderRadius: 10, border: '1px solid #cbd5e1', padding: 12, fontSize: 15, boxSizing: 'border-box' },
   divisor: { height: 1, backgroundColor: '#e2e8f0', margin: '20px 0' },
   listaItens: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 },
-  itemOrcamento: { display: 'flex', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 12, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' },
+  itemOrcamento: { display: 'flex', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 12, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', flexWrap: 'wrap' },
   itemDireita: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 },
   botaoRemover: { border: 'none', background: 'transparent', color: '#dc2626', cursor: 'pointer', fontWeight: 600 },
   totalBox: { display: 'flex', justifyContent: 'space-between', marginTop: 16, padding: 16, borderRadius: 14, backgroundColor: '#0f172a', color: '#fff', fontSize: 18 },
   acoesFormulario: { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 },
   lista: { display: 'flex', flexDirection: 'column', gap: 12 },
-  orcamentoCard: { display: 'flex', justifyContent: 'space-between', gap: 16, padding: 14, borderRadius: 14, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' },
+  orcamentoCard: { display: 'flex', justifyContent: 'space-between', gap: 16, padding: 14, borderRadius: 14, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', flexWrap: 'wrap' },
   orcamentoCliente: { margin: 0, fontSize: 18, color: '#0f172a' },
   status: { display: 'inline-block', marginTop: 8, padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, background: '#e0f2fe', color: '#075985' },
-  valorOrcamento: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12, color: '#0f172a' },
-  botoesCard: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  valorOrcamento: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, color: '#0f172a', width: '100%' },
+  botoesCard: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', width: '100%' },
   visualizacaoTopo: { display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' },
   valorGrande: { fontSize: 26, color: '#16a34a' },
 };
