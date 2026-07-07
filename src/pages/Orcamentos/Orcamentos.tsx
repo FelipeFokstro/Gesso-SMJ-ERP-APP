@@ -880,6 +880,7 @@ export default function Orcamentos() {
       horaObra: status === 'Aprovado' ? horaObra : '',
       equipe: status === 'Aprovado' ? equipe : '',
       observacoesExecucao: status === 'Aprovado' ? observacoesExecucao : '',
+      statusObra: status === 'Aprovado' ? (orcamentoExistente?.statusObra || 'Agendada') : undefined,
       criadoEm:
         orcamentoExistente?.criadoEm ||
         new Date().toISOString().split('T')[0],
@@ -917,7 +918,7 @@ export default function Orcamentos() {
 
     const novaLista = orcamentos.map((item) =>
       item.id === orcamentoAprovando.id
-        ? { ...item, status: 'Aprovado' as StatusOrcamento, dataObra: dataAprovacao, horaObra: horaAprovacao, atualizadoEm: new Date().toISOString().split('T')[0] }
+        ? { ...item, status: 'Aprovado' as StatusOrcamento, statusObra: item.statusObra || 'Agendada', dataObra: dataAprovacao, horaObra: horaAprovacao, atualizadoEm: new Date().toISOString().split('T')[0] }
         : item
     );
 

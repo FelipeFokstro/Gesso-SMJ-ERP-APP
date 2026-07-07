@@ -10,6 +10,8 @@ export interface ItemOrcamento {
   subtotal: number;
 }
 
+export type StatusObra = 'Agendada' | 'Iniciada' | 'Finalizada';
+
 export interface Orcamento {
   id: number;
   numero?: number;
@@ -27,6 +29,7 @@ export interface Orcamento {
   total: number;
   observacoes: string;
   status: StatusOrcamento;
+  statusObra?: StatusObra;
   dataObra?: string;
   horaObra?: string;
   equipe?: string;

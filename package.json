@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "android:add": "npm run build && npx cap add android",
     "android:sync": "npm run build && npx cap sync android",
-    "android:open": "npm run build && npx cap sync android && npx cap open android"
+    "android:open": "npm run build && npx cap sync android && npx cap open android",
+    "android:icon": "npx capacitor-assets generate"
   },
   "dependencies": {
     "lucide-react": "^1.23.0",
@@ -33,6 +34,7 @@
     "prettier": "^3.9.4",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
-    "@capacitor/cli": "^7.0.0"
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/assets": "^3.0.5"
   }
 }
