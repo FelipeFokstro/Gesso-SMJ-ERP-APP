@@ -3,6 +3,7 @@ import './BottomNavigation.css';
 
 const menuItems = [
   { label: 'Início', icon: '⌂', path: '/' },
+  { label: 'Orçam.', icon: '▦', path: '/orcamentos' },
   { label: 'Obras', icon: '▣', path: '/obras' },
   { label: 'Agenda', icon: '◇', path: '/agenda' },
   { label: 'Estoque', icon: '▤', path: '/estoque' },

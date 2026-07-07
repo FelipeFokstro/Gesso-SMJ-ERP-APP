@@ -13,10 +13,11 @@ import type { ItemOrcamento, Orcamento, StatusOrcamento } from '../../models/Orc
 import type { Servico } from '../../models/Servico';
 
 import { clienteService } from '../../services/clienteService';
-import { carregarOrcamentos, carregarTabelaPrecos, proximoNumeroOrcamento, salvarOrcamentos } from '../../services/orcamentoStorage';
+import { carregarOrcamentos, carregarTabelaPrecos, proximoNumeroOrcamento, salvarOrcamentos, salvarTabelaPrecos } from '../../services/orcamentoStorage';
 import { formatarMoeda } from '../../utils/formatarMoeda';
 import logoGessoSMJ from '../../assets/logo-gesso-smj.png';
 
+const ORCAMENTO_RASCUNHO_KEY = 'gesso-smj-orcamento-rascunho';
 
 function isAndroidApp() {
   return Capacitor.isNativePlatform();
@@ -502,7 +503,7 @@ export default function Orcamentos() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [tabelaPrecos] = useState<Servico[]>(carregarTabelaPrecos());
+  const [tabelaPrecos, setTabelaPrecos] = useState<Servico[]>(carregarTabelaPrecos());
   const [clientes] = useState(clienteService.listar());
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>(carregarOrcamentos());
 
@@ -534,8 +535,20 @@ export default function Orcamentos() {
   const [quantidade, setQuantidade] = useState<number>(1);
   const [valorUnitario, setValorUnitario] = useState<number>(servicoAtual?.valorUnitario || 0);
   const [itens, setItens] = useState<ItemOrcamento[]>([]);
+  const [itemEditandoId, setItemEditandoId] = useState<number | null>(null);
+  const [servicoCadastroAberto, setServicoCadastroAberto] = useState(false);
+  const [novoServicoNome, setNovoServicoNome] = useState('');
+  const [novoServicoValor, setNovoServicoValor] = useState<number>(0);
+  const [novoServicoUnidade, setNovoServicoUnidade] = useState<Servico['unidade']>('m²');
+  const [itemModal, setItemModal] = useState<ItemOrcamento | null>(null);
+  const [itemModalQuantidade, setItemModalQuantidade] = useState<number>(1);
+  const [itemModalValor, setItemModalValor] = useState<number>(0);
   const [desconto, setDesconto] = useState(0);
   const [acrescimo, setAcrescimo] = useState(0);
+
+  const [orcamentoAprovando, setOrcamentoAprovando] = useState<Orcamento | null>(null);
+  const [dataAprovacao, setDataAprovacao] = useState('');
+  const [horaAprovacao, setHoraAprovacao] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -555,8 +568,103 @@ export default function Orcamentos() {
   }, [location.search]);
 
   useEffect(() => {
-    if (servicoAtual) setValorUnitario(servicoAtual.valorUnitario);
-  }, [servicoSelecionadoId]);
+    if (location.search) return;
+
+    const rascunhoSalvo = localStorage.getItem(ORCAMENTO_RASCUNHO_KEY);
+    if (!rascunhoSalvo) return;
+
+    try {
+      const rascunho = JSON.parse(rascunhoSalvo);
+      if (!rascunho?.temConteudo) return;
+
+      setClienteId(rascunho.clienteId || '');
+      setCliente(rascunho.cliente || '');
+      setTelefone(rascunho.telefone || '');
+      setCidade(rascunho.cidade || '');
+      setBairro(rascunho.bairro || '');
+      setEndereco(rascunho.endereco || '');
+      setReferencia(rascunho.referencia || '');
+      setObservacoes(rascunho.observacoes || '');
+      setStatus(rascunho.status || 'Pendente');
+      setDataObra(rascunho.dataObra || '');
+      setHoraObra(rascunho.horaObra || '');
+      setEquipe(rascunho.equipe || '');
+      setObservacoesExecucao(rascunho.observacoesExecucao || '');
+      setItens(Array.isArray(rascunho.itens) ? rascunho.itens : []);
+      setDesconto(Number(rascunho.desconto || 0));
+      setAcrescimo(Number(rascunho.acrescimo || 0));
+      setServicoSelecionadoId(rascunho.servicoSelecionadoId || tabelaPrecos[0]?.id || 1);
+      setQuantidade(Number(rascunho.quantidade || 1));
+      setValorUnitario(Number(rascunho.valorUnitario || tabelaPrecos[0]?.valorUnitario || 0));
+      setMostrarFormulario(true);
+    } catch {
+      localStorage.removeItem(ORCAMENTO_RASCUNHO_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!mostrarFormulario || orcamentoEditandoId) return;
+
+    const temConteudo = Boolean(
+      cliente.trim() || telefone.trim() || cidade.trim() || bairro.trim() || endereco.trim() || referencia.trim() || observacoes.trim() ||
+      itens.length > 0 || desconto > 0 || acrescimo > 0 || status !== 'Pendente'
+    );
+
+    if (!temConteudo) {
+      localStorage.removeItem(ORCAMENTO_RASCUNHO_KEY);
+      return;
+    }
+
+    localStorage.setItem(ORCAMENTO_RASCUNHO_KEY, JSON.stringify({
+      temConteudo,
+      clienteId,
+      cliente,
+      telefone,
+      cidade,
+      bairro,
+      endereco,
+      referencia,
+      observacoes,
+      status,
+      dataObra,
+      horaObra,
+      equipe,
+      observacoesExecucao,
+      itens,
+      desconto,
+      acrescimo,
+      servicoSelecionadoId,
+      quantidade,
+      valorUnitario,
+      salvoEm: new Date().toISOString(),
+    }));
+  }, [
+    mostrarFormulario,
+    orcamentoEditandoId,
+    clienteId,
+    cliente,
+    telefone,
+    cidade,
+    bairro,
+    endereco,
+    referencia,
+    observacoes,
+    status,
+    dataObra,
+    horaObra,
+    equipe,
+    observacoesExecucao,
+    itens,
+    desconto,
+    acrescimo,
+    servicoSelecionadoId,
+    quantidade,
+    valorUnitario,
+  ]);
+
+  useEffect(() => {
+    if (servicoAtual && !itemEditandoId) setValorUnitario(servicoAtual.valorUnitario);
+  }, [servicoSelecionadoId, itemEditandoId]);
 
   const subtotal = useMemo(() => itens.reduce((soma, item) => soma + item.subtotal, 0), [itens]);
   const total = subtotal - desconto + acrescimo;
@@ -625,8 +733,10 @@ export default function Orcamentos() {
     setQuantidade(1);
     setValorUnitario(tabelaPrecos[0]?.valorUnitario || 0);
     setItens([]);
+    setItemEditandoId(null);
     setDesconto(0);
     setAcrescimo(0);
+    localStorage.removeItem(ORCAMENTO_RASCUNHO_KEY);
   }
 
   function carregarParaEdicao(orcamento: Orcamento) {
@@ -651,12 +761,49 @@ export default function Orcamentos() {
     setOrcamentoVisualizado(null);
   }
 
+  function abrirCadastroServico() {
+    setNovoServicoNome('');
+    setNovoServicoValor(0);
+    setNovoServicoUnidade('m²');
+    setServicoCadastroAberto(true);
+  }
+
+  function salvarNovoServico() {
+    const nome = novoServicoNome.trim();
+    if (!nome) return alert('Informe o nome do serviço.');
+    if (!novoServicoValor || novoServicoValor <= 0) return alert('Informe o valor do serviço.');
+
+    const novoServico: Servico = {
+      id: Date.now(),
+      nome,
+      valorUnitario: novoServicoValor,
+      unidade: novoServicoUnidade,
+      categoria: 'Serviço',
+    };
+
+    const novaTabela = [...tabelaPrecos, novoServico];
+    setTabelaPrecos(novaTabela);
+    salvarTabelaPrecos(novaTabela);
+    setServicoSelecionadoId(novoServico.id);
+    setValorUnitario(novoServico.valorUnitario);
+    setServicoCadastroAberto(false);
+  }
+
+  function selecionarServico(valor: string) {
+    if (valor === '__novo_servico__') {
+      abrirCadastroServico();
+      return;
+    }
+
+    setServicoSelecionadoId(Number(valor));
+  }
+
   function adicionarServico() {
     if (!servicoAtual) return;
     if (!quantidade || quantidade <= 0) return alert('Informe uma quantidade válida.');
     if (!valorUnitario || valorUnitario <= 0) return alert('Informe um valor unitário válido.');
 
-    const novoItem: ItemOrcamento = {
+    const itemAtualizado: ItemOrcamento = {
       id: Date.now(),
       servicoId: servicoAtual.id,
       nome: servicoAtual.nome,
@@ -666,12 +813,42 @@ export default function Orcamentos() {
       subtotal: quantidade * valorUnitario,
     };
 
-    setItens((listaAtual) => [...listaAtual, novoItem]);
+    setItens((listaAtual) => [...listaAtual, itemAtualizado]);
     setQuantidade(1);
+    setValorUnitario(servicoAtual.valorUnitario);
+  }
+
+  function editarItem(item: ItemOrcamento) {
+    setItemModal(item);
+    setItemModalQuantidade(item.quantidade);
+    setItemModalValor(item.valorUnitario);
+  }
+
+  function salvarEdicaoItem() {
+    if (!itemModal) return;
+    if (!itemModalQuantidade || itemModalQuantidade <= 0) return alert('Informe uma quantidade válida.');
+    if (!itemModalValor || itemModalValor <= 0) return alert('Informe um valor unitário válido.');
+
+    setItens((listaAtual) => listaAtual.map((item) => (
+      item.id === itemModal.id
+        ? { ...item, quantidade: itemModalQuantidade, valorUnitario: itemModalValor, subtotal: itemModalQuantidade * itemModalValor }
+        : item
+    )));
+
+    setItemModal(null);
+  }
+
+  function cancelarEdicaoItem() {
+    setItemEditandoId(null);
+    setItemModal(null);
+    setQuantidade(1);
+    setValorUnitario(servicoAtual?.valorUnitario || 0);
   }
 
   function removerItem(id: number) {
+    if (!confirm('Remover este serviço do orçamento?')) return;
     setItens((listaAtual) => listaAtual.filter((item) => item.id !== id));
+    if (itemEditandoId === id) cancelarEdicaoItem();
   }
 
   function salvarOrcamento() {
@@ -715,6 +892,7 @@ export default function Orcamentos() {
 
     setOrcamentos(novaLista);
     salvarOrcamentos(novaLista);
+    localStorage.removeItem(ORCAMENTO_RASCUNHO_KEY);
     limparFormulario();
     setMostrarFormulario(false);
     alert(orcamentoEditandoId ? 'Orçamento atualizado.' : 'Orçamento salvo com sucesso.');
@@ -727,14 +905,28 @@ export default function Orcamentos() {
     salvarOrcamentos(novaLista);
   }
 
-  function aprovarOrcamento(orcamento: Orcamento) {
-    const data = prompt('Informe a data da obra. Exemplo: 2026-07-10', orcamento.dataObra || '');
-    if (!data) return;
+  function abrirCalendarioAprovacao(orcamento: Orcamento) {
+    setOrcamentoAprovando(orcamento);
+    setDataAprovacao(orcamento.dataObra || '');
+    setHoraAprovacao(orcamento.horaObra || '');
+  }
+
+  function confirmarAprovacao() {
+    if (!orcamentoAprovando) return;
+    if (!dataAprovacao) return alert('Escolha a data de início da obra.');
+
     const novaLista = orcamentos.map((item) =>
-      item.id === orcamento.id ? { ...item, status: 'Aprovado' as StatusOrcamento, dataObra: data } : item
+      item.id === orcamentoAprovando.id
+        ? { ...item, status: 'Aprovado' as StatusOrcamento, dataObra: dataAprovacao, horaObra: horaAprovacao, atualizadoEm: new Date().toISOString().split('T')[0] }
+        : item
     );
+
     setOrcamentos(novaLista);
     salvarOrcamentos(novaLista);
+    setOrcamentoAprovando(null);
+    setDataAprovacao('');
+    setHoraAprovacao('');
+    alert('Orçamento aprovado e obra agendada.');
   }
 
   function duplicarOrcamento(orcamento: Orcamento) {
@@ -825,9 +1017,27 @@ export default function Orcamentos() {
           <Button onClick={() => { limparFormulario(); setMostrarFormulario(true); }}>Novo orçamento</Button>
         </div>
 
+        {orcamentoAprovando && (
+          <Card>
+            <h2 style={styles.cardTitulo}>Aprovar e agendar obra</h2>
+            <p style={styles.textoFraco}>{numeroOrcamento(orcamentoAprovando)} • {orcamentoAprovando.cliente} • {formatarMoeda(orcamentoAprovando.total)}</p>
+            <div style={styles.grid}>
+              <Input label="Data de início" type="date" value={dataAprovacao} onChange={(e) => setDataAprovacao(e.target.value)} />
+              <Input label="Hora" type="time" value={horaAprovacao} onChange={(e) => setHoraAprovacao(e.target.value)} />
+            </div>
+            <div style={styles.acoesFormulario}>
+              <Button onClick={confirmarAprovacao}>Salvar obra agendada</Button>
+              <Button variant="outline" onClick={() => setOrcamentoAprovando(null)}>Cancelar</Button>
+            </div>
+          </Card>
+        )}
+
         {mostrarFormulario && (
           <Card>
             <h2 style={styles.cardTitulo}>{orcamentoEditandoId ? 'Editar orçamento' : 'Novo orçamento'}</h2>
+            {!orcamentoEditandoId && (
+              <p style={styles.textoFraco}>Salvamento automático ativo. Se sair da tela, o orçamento em andamento continua salvo.</p>
+            )}
 
             {clientes.length > 0 && (
               <div style={styles.campoSemMargem}>
@@ -855,7 +1065,8 @@ export default function Orcamentos() {
             <div style={styles.gridServico}>
               <div style={styles.campoSemMargem}>
                 <label style={styles.label}>Serviço</label>
-                <select style={styles.select} value={servicoSelecionadoId} onChange={(e) => setServicoSelecionadoId(Number(e.target.value))}>
+                <select style={styles.select} value={servicoSelecionadoId} onChange={(e) => selecionarServico(e.target.value)}>
+                  <option value="__novo_servico__">+ Cadastrar novo serviço</option>
                   {tabelaPrecos.map((servico) => (
                     <option key={servico.id} value={servico.id}>{servico.nome} - {formatarMoeda(servico.valorUnitario)}/{servico.unidade}</option>
                   ))}
@@ -863,7 +1074,7 @@ export default function Orcamentos() {
               </div>
               <Input label="Quantidade" type="number" value={quantidade} onChange={(e) => setQuantidade(Number(e.target.value))} />
               <Input label="Valor unitário" type="number" value={valorUnitario} onChange={(e) => setValorUnitario(Number(e.target.value))} />
-              <Button onClick={adicionarServico}>Adicionar</Button>
+              <Button onClick={adicionarServico}>Adicionar serviço</Button>
             </div>
 
             {itens.length > 0 && (
@@ -871,7 +1082,13 @@ export default function Orcamentos() {
                 {itens.map((item) => (
                   <div key={item.id} style={styles.itemOrcamento}>
                     <div><strong>{item.nome}</strong><p style={styles.textoFraco}>{item.quantidade} {item.unidade} × {formatarMoeda(item.valorUnitario)}</p></div>
-                    <div style={styles.itemDireita}><strong>{formatarMoeda(item.subtotal)}</strong><button style={styles.botaoRemover} onClick={() => removerItem(item.id)}>Remover</button></div>
+                    <div style={styles.itemDireita}>
+                      <strong>{formatarMoeda(item.subtotal)}</strong>
+                      <div style={styles.botoesItem}>
+                        <button style={styles.botaoEditarItem} onClick={() => editarItem(item)}>Editar</button>
+                        <button style={styles.botaoRemover} onClick={() => removerItem(item.id)}>Remover</button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -950,7 +1167,7 @@ export default function Orcamentos() {
                   <div style={styles.botoesCard}>
                     <Button size="sm" variant="outline" onClick={() => setOrcamentoVisualizado(orcamento)}>Visualizar</Button>
                     <Button size="sm" onClick={() => carregarParaEdicao(orcamento)}>Editar</Button>
-                    {orcamento.status !== 'Aprovado' && <Button size="sm" onClick={() => aprovarOrcamento(orcamento)}>Aprovar</Button>}
+                    {orcamento.status !== 'Aprovado' && <Button size="sm" onClick={() => abrirCalendarioAprovacao(orcamento)}>Marcar aprovado</Button>}
                     <Button size="sm" variant="secondary" onClick={() => duplicarOrcamento(orcamento)}>Duplicar</Button>
                     <Button size="sm" variant="secondary" onClick={() => compartilharOrcamento(orcamento)}>Compartilhar</Button>
                     <Button size="sm" variant="danger" onClick={() => excluirOrcamento(orcamento.id)}>Excluir</Button>
@@ -961,6 +1178,49 @@ export default function Orcamentos() {
             {orcamentosFiltrados.length === 0 && <p style={styles.textoFraco}>Nenhum orçamento encontrado.</p>}
           </div>
         </Card>
+
+        {servicoCadastroAberto && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modalCard}>
+              <h2 style={styles.modalTitulo}>Cadastrar novo serviço</h2>
+              <p style={styles.textoFraco}>Esse serviço ficará salvo na tabela de preços para os próximos orçamentos.</p>
+              <Input label="Nome do serviço" value={novoServicoNome} onChange={(e) => setNovoServicoNome(e.target.value)} placeholder="Ex.: Moldura, Rebaixo, Reparo" />
+              <div style={styles.grid}>
+                <Input label="Valor" type="number" value={novoServicoValor} onChange={(e) => setNovoServicoValor(Number(e.target.value))} />
+                <div style={styles.campoSemMargem}>
+                  <label style={styles.label}>Unidade</label>
+                  <select style={styles.select} value={novoServicoUnidade} onChange={(e) => setNovoServicoUnidade(e.target.value as Servico['unidade'])}>
+                    <option value="m²">m²</option>
+                    <option value="m">metro linear</option>
+                    <option value="un">unidade</option>
+                  </select>
+                </div>
+              </div>
+              <div style={styles.acoesFormulario}>
+                <Button onClick={salvarNovoServico}>Salvar serviço</Button>
+                <Button variant="outline" onClick={() => setServicoCadastroAberto(false)}>Cancelar</Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {itemModal && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modalCard}>
+              <h2 style={styles.modalTitulo}>Editar serviço</h2>
+              <p style={styles.textoFraco}>{itemModal.nome}</p>
+              <div style={styles.grid}>
+                <Input label={`Quantidade (${itemModal.unidade})`} type="number" value={itemModalQuantidade} onChange={(e) => setItemModalQuantidade(Number(e.target.value))} />
+                <Input label="Valor unitário" type="number" value={itemModalValor} onChange={(e) => setItemModalValor(Number(e.target.value))} />
+              </div>
+              <div style={styles.totalBox}><span>Novo subtotal</span><strong>{formatarMoeda(itemModalQuantidade * itemModalValor)}</strong></div>
+              <div style={styles.acoesFormulario}>
+                <Button onClick={salvarEdicaoItem}>Salvar alteração</Button>
+                <Button variant="outline" onClick={() => setItemModal(null)}>Cancelar</Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );
@@ -985,7 +1245,10 @@ const styles: Record<string, React.CSSProperties> = {
   listaItens: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 },
   itemOrcamento: { display: 'flex', justifyContent: 'space-between', gap: 12, padding: 12, borderRadius: 12, backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', flexWrap: 'wrap' },
   itemDireita: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 },
-  botaoRemover: { border: 'none', background: 'transparent', color: '#dc2626', cursor: 'pointer', fontWeight: 600 },
+  botaoRemover: { border: 'none', background: 'transparent', color: '#dc2626', cursor: 'pointer', fontWeight: 800 },
+  botaoEditarItem: { border: 'none', background: 'transparent', color: '#0b2f4f', cursor: 'pointer', fontWeight: 800 },
+  botaoCancelarItem: { alignSelf: 'flex-start', marginTop: 10, border: 'none', background: '#eef2ff', color: '#0b2f4f', borderRadius: 999, padding: '8px 12px', cursor: 'pointer', fontWeight: 800 },
+  botoesItem: { display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' },
   totalBox: { display: 'flex', justifyContent: 'space-between', marginTop: 16, padding: 16, borderRadius: 14, backgroundColor: '#0f172a', color: '#fff', fontSize: 18 },
   acoesFormulario: { display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 20 },
   lista: { display: 'flex', flexDirection: 'column', gap: 12 },
@@ -996,4 +1259,7 @@ const styles: Record<string, React.CSSProperties> = {
   botoesCard: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-start', width: '100%' },
   visualizacaoTopo: { display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' },
   valorGrande: { fontSize: 26, color: '#16a34a' },
+  modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 18, boxSizing: 'border-box' },
+  modalCard: { width: '100%', maxWidth: 440, maxHeight: '86vh', overflowY: 'auto', background: '#ffffff', borderRadius: 28, padding: 22, boxShadow: '0 24px 70px rgba(15, 23, 42, 0.28)', boxSizing: 'border-box' },
+  modalTitulo: { margin: '0 0 8px', fontSize: 22, color: '#0f172a', lineHeight: 1.1 },
 };
